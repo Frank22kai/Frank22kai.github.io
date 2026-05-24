@@ -603,43 +603,32 @@ footer{
 
 </style>
 <script src="https://web3forms.com/client/script.js" async defer>
+
 /* ============================================================
-   QUOTE FORM SUBMISSION — Web3Forms + WhatsApp fallback
+   QUOTE FORM SUBMISSION - Web3Forms via fetch
    ============================================================ */
 const qForm = document.getElementById('quoteForm');
 if(qForm){
   qForm.addEventListener('submit', async function(e){
     e.preventDefault();
-    const btn = qForm.querySelector('[data-t="fsub"]');
-    const origText = btn.innerHTML;
+    e.stopPropagation();
 
-    // Validate required fields
-    const name = qForm.querySelector('input[type="text"]').value.trim();
-    const email = qForm.querySelector('input[type="email"]').value.trim();
-    if(!name || !email){
-      showFormMsg('error', 'Please fill in your name and email.', 'Por favor completa nombre y correo.');
-      return;
-    }
+    const btn = qForm.querySelector('[type="submit"]');
+    const origHTML = btn.innerHTML;
 
-    // Loading state
+    // Basic validation
+    const nameVal  = qForm.querySelector('[name="name"]').value.trim();
+    const emailVal = qForm.querySelector('[name="email"]').value.trim();
+    if(!nameVal){alert('Please enter your name.');return;}
+    if(!emailVal||!emailVal.includes('@')){alert('Please enter a valid email.');return;}
+
+    // Loading
     btn.innerHTML = '&#9654; SENDING...';
-    btn.style.opacity = '.65';
     btn.disabled = true;
 
     try {
-      // Check if access key is set
-      const ak = qForm.querySelector('[name="access_key"]').value;
-      if(ak === 'c7d4b7d6-c4a7-4104-9e4a-9764c3be0050'){
-        // No key set — fallback to WhatsApp + mailto
-        fallbackSubmit(qForm);
-        btn.innerHTML = origText;
-        btn.style.opacity = '';
-        btn.disabled = false;
-        return;
-      }
-
       const formData = new FormData(qForm);
-      const res = await fetch('https://api.web3forms.com/submit', {
+      const res = await fetch('https://api.web3forms.com/submit',{
         method:'POST',
         body: formData
       });
@@ -647,45 +636,38 @@ if(qForm){
 
       if(data.success){
         qForm.style.display = 'none';
-        document.getElementById('formSuccess').style.display = 'block';
-        document.getElementById('formSuccess').scrollIntoView({behavior:'smooth', block:'center'});
+        const suc = document.getElementById('formSuccess');
+        suc.style.display = 'block';
+        suc.scrollIntoView({behavior:'smooth',block:'center'});
       } else {
-        throw new Error(data.message);
+        throw new Error(data.message||'Submission failed');
       }
     } catch(err){
-      console.error(err);
-      fallbackSubmit(qForm);
+      console.error('Form error:',err);
+      // WhatsApp fallback
+      const msg = encodeURIComponent(
+        '*Quote Request - Frank Jr Design*
+
+' +
+        'Name: ' + nameVal + '
+' +
+        'Email: ' + emailVal + '
+' +
+        'Service: ' + (qForm.querySelector('[name="service"]').value||'-') + '
+' +
+        'Material: ' + (qForm.querySelector('[name="material"]').value||'-') + '
+' +
+        'Tolerance: ' + (qForm.querySelector('[name="tolerance"]').value||'-') + '
+' +
+        'Quantity: ' + (qForm.querySelector('[name="quantity"]').value||'-')
+      );
+      window.open('https://wa.me/573012567767?text='+msg,'_blank');
+      alert('Form sent via WhatsApp. We will contact you shortly!');
     } finally {
-      btn.innerHTML = origText;
-      btn.style.opacity = '';
+      btn.innerHTML = origHTML;
       btn.disabled = false;
     }
   });
-}
-
-function fallbackSubmit(form){
-  // Build WhatsApp message from form data
-  const fields = [...form.querySelectorAll('input:not([type=hidden]):not([type=checkbox]):not([type=file]), select, textarea')];
-  const labels = [...form.querySelectorAll('.f-lbl')];
-  let msg = '*New Quote Request — Frank Jr Design*%0A%0A';
-  fields.forEach((f,i) => {
-    const lbl = labels[i] ? labels[i].textContent.trim() : '';
-    const val = f.value.trim();
-    if(val && lbl) msg += `*${lbl}:* ${val}%0A`;
-  });
-  msg += '%0AFrom: frankjrdesign.com';
-  // Open WhatsApp
-  window.open('https://wa.me/573012567767?text=' + msg, '_blank');
-  // Also trigger email fallback
-  const email = form.querySelector('input[type="email"]').value;
-  const name = form.querySelector('input[type="text"]').value;
-  const mailto = `mailto:frankpalacio14@gmail.com?subject=Quote Request from ${encodeURIComponent(name)}&body=${encodeURIComponent('Name: '+name+'\nEmail: '+email+'\n\nSent from frankjrdesign website')}`;
-  setTimeout(()=>{ window.location.href = mailto; }, 1500);
-}
-
-function showFormMsg(type, msgEn, msgEs){
-  const lang = document.querySelector('.lopt.on')?.onclick?.toString().includes("'es'") ? 'es' : 'en';
-  alert(lang === 'es' ? msgEs : msgEn);
 }
 
 </script>
@@ -1239,7 +1221,7 @@ function showFormMsg(type, msgEn, msgEs){
     <div class="sec-lbl" data-t="qlbl">Quote</div>
     <h2 class="sec-title rv" data-t="qtit">Request a Precision Quote</h2>
     <p class="sec-desc rv" data-t="qdsc">Upload your CAD files, drawings or specifications. Response with full technical and commercial proposal within 24-48 hours.</p>
-    <form id="quoteForm" method="POST" action="https://api.web3forms.com/submit">
+    <form id="quoteForm" onsubmit="return false;">
       <!-- Web3Forms hidden config -->
       <input type="hidden" name="access_key" value="c7d4b7d6-c4a7-4104-9e4a-9764c3be0050">
       <input type="hidden" name="subject" value="New Quote Request - Frank Jr Design">
@@ -1248,12 +1230,12 @@ function showFormMsg(type, msgEn, msgEs){
       <input type="checkbox" name="botcheck" style="display:none">
 <div class="q-g">
       <div class="rv-l">
-        <div class="f-grp"><label class="f-lbl" data-t="fl1">Full Name</label><input type="text" class="f-inp" placeholder="John Smith"></div>
-        <div class="f-grp"><label class="f-lbl" data-t="fl2">Company / Project</label><input type="text" class="f-inp" placeholder="Company Inc."></div>
-        <div class="f-grp"><label class="f-lbl" data-t="fl3">Email</label><input type="email" class="f-inp" placeholder="email@company.com"></div>
+        <div class="f-grp"><label class="f-lbl" data-t="fl1">Full Name</label><input type="text" class="f-inp" placeholder="John Smith" name="name"></div>
+        <div class="f-grp"><label class="f-lbl" data-t="fl2">Company / Project</label><input type="text" class="f-inp" placeholder="Company Inc." name="company"></div>
+        <div class="f-grp"><label class="f-lbl" data-t="fl3">Email</label><input type="email" class="f-inp" placeholder="email@company.com" name="email"></div>
         <div class="f-grp">
           <label class="f-lbl" data-t="fl4">Service Required</label>
-          <select class="f-sel">
+          <select class="f-sel" name="service">
             <option data-t="fsel">Select service...</option>
             <option data-t="fop1">3D Design &amp; Product Development</option>
             <option data-t="fop2">CAM Programming &amp; CNC Machining</option>
@@ -1263,9 +1245,9 @@ function showFormMsg(type, msgEn, msgEs){
             <option data-t="fop6">Steel Cost Engineering</option>
           </select>
         </div>
-        <div class="f-grp"><label class="f-lbl" data-t="fl5">Material</label><input type="text" class="f-inp" placeholder="e.g. AISI 4140, 316L SS, Aluminum 6061"></div>
-        <div class="f-grp"><label class="f-lbl" data-t="fl6">Critical Tolerance</label><input type="text" class="f-inp" placeholder="e.g. ±0.01mm, IT6, Ra 0.8µm"></div>
-        <div class="f-grp"><label class="f-lbl" data-t="fl7">Quantity</label><input type="text" class="f-inp" placeholder="e.g. 1 prototype / 50 units / series"></div>
+        <div class="f-grp"><label class="f-lbl" data-t="fl5">Material</label><input type="text" class="f-inp" placeholder="e.g. AISI 4140, 316L SS, Aluminum 6061" name="material"></div>
+        <div class="f-grp"><label class="f-lbl" data-t="fl6">Critical Tolerance</label><input type="text" class="f-inp" placeholder="e.g. ±0.01mm, IT6, Ra 0.8µm" name="tolerance"></div>
+        <div class="f-grp"><label class="f-lbl" data-t="fl7">Quantity</label><input type="text" class="f-inp" placeholder="e.g. 1 prototype / 50 units / series" name="quantity"></div>
         <div class="f-grp">
           <label class="f-lbl" data-t="fl8">Urgency</label>
           <div class="upills">
@@ -1278,17 +1260,17 @@ function showFormMsg(type, msgEn, msgEs){
       <div class="rv-r">
         <label class="f-lbl" data-t="fl9">Upload Files (STEP / IGES / DWG / PDF / STL)</label>
         <div class="fdrop">
-          <input type="file" multiple accept=".step,.stp,.iges,.igs,.dwg,.dxf,.pdf,.stl,.3mf">
+          <input type="file" multiple accept=".step,.stp,.iges,.igs,.dwg,.dxf,.pdf,.stl,.3mf" name="cad_files">
           <span class="fdrop-ic">&#8659;</span>
           <p data-t="fdp">Drag &amp; drop your CAD files here</p>
           <span data-t="fds">STEP &middot; IGES &middot; DWG &middot; PDF &middot; STL &middot; Max 50MB</span>
         </div>
-        <div class="f-grp"><label class="f-lbl" data-t="fl10">Application &amp; Conditions</label><textarea class="f-ta" placeholder="Describe application, loads, temperatures, environment, certifications needed..." rows="4"></textarea></div>
-        <div class="f-grp"><label class="f-lbl" data-t="fl11">Additional Notes</label><textarea class="f-ta" placeholder="Standards required, special processes, delivery details..." rows="3"></textarea></div>
+        <div class="f-grp"><label class="f-lbl" data-t="fl10">Application &amp; Conditions</label><textarea class="f-ta" placeholder="Describe application..." name="application" rows="4" name="application"></textarea></div>
+        <div class="f-grp"><label class="f-lbl" data-t="fl11">Additional Notes</label><textarea class="f-ta" placeholder="Standards required, special processes, delivery details..." rows="3" name="notes"></textarea></div>
         <div class="f-grp" style="margin-top:4px">
           <label class="f-lbl" style="color:var(--bl2)" data-t="fi_lbl">Add Reference Images (JPG / PNG)</label>
           <div class="img-upload-area" id="img-drop">
-            <input type="file" id="img-file-input" multiple accept="image/jpeg,image/png,image/webp" onchange="previewImgs(this)">
+            <input type="file" id="img-file-input" multiple accept="image/jpeg,image/png,image/webp" name="images" onchange="previewImgs(this)">
             <span class="iu-ic">&#128247;</span>
             <p data-t="fi_p">Upload photos of your part, drawing or reference</p>
             <span data-t="fi_s">JPG &middot; PNG &middot; WEBP &middot; Max 10MB each</span>
