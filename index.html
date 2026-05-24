@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -886,7 +885,18 @@ footer span{color:var(--orange)}
           <label class="form-label" data-t="fl_notes">Additional Notes</label>
           <textarea class="form-textarea" name="notes" placeholder="Standards required, certifications, special processes, delivery details..." rows="3"></textarea>
         </div>
-        <button type="button" onclick="submitQuote()" class="btn-p" data-t="btn_submit">&#9656; Send Quote Request</button>
+        
+        <div style="margin-bottom:18px">
+          <label style="font-size:.7rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#4d8bff;display:block;margin-bottom:7px;font-family:'Share Tech Mono',monospace" data-t="fi_lbl">Add Reference Images (JPG / PNG)</label>
+          <div id="img-drop" style="border:2px dashed rgba(0,87,255,.3);padding:28px;text-align:center;background:rgba(0,87,255,.025);cursor:pointer;transition:all .25s;position:relative" onmouseover="this.style.borderColor='#4d8bff'" onmouseout="this.style.borderColor='rgba(0,87,255,.3)'">
+            <input type="file" id="img-file-input" multiple accept="image/jpeg,image/png,image/webp" onchange="previewImgs(this)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%">
+            <span style="font-size:1.8rem;display:block;margin-bottom:8px;color:#4d8bff">&#128247;</span>
+            <p style="font-size:.82rem;color:#6b7a8d" data-t="fi_p">Upload photos of your part, drawing or reference</p>
+            <span style="font-size:.67rem;color:#4d8bff;font-family:'Share Tech Mono',monospace;letter-spacing:1px;margin-top:4px;display:block" data-t="fi_s">JPG &middot; PNG &middot; WEBP &middot; Max 10MB each</span>
+          </div>
+          <div id="img-preview" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px"></div>
+        </div>
+        <button type="button" onclick="submitQuote()" style="display:inline-flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:15px 36px;background:var(--orange);color:#08090d;font-family:'Rajdhani',sans-serif;font-size:.88rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;border:none;cursor:pointer;clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px));box-shadow:0 0 28px rgba(255,92,0,.35);transition:all .3s;margin-top:6px">&#9656; Send Quote Request</button>
         <p style="font-size:.72rem;color:var(--gray);margin-top:12px;letter-spacing:.5px" data-t="form_note">All files are treated with strict confidentiality. Response within 24-48 hours.</p>
       </div>
     </div>
