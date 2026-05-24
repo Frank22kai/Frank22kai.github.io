@@ -604,70 +604,102 @@ footer{
 </style>
 <script src="https://web3forms.com/client/script.js" async defer>
 
+
 /* ============================================================
-   QUOTE FORM SUBMISSION - Web3Forms via fetch
+   QUOTE FORM — Pure JS, no form submit
    ============================================================ */
-const qForm = document.getElementById('quoteForm');
-if(qForm){
-  qForm.addEventListener('submit', async function(e){
-    e.preventDefault();
-    e.stopPropagation();
+async function submitQuote(){
+  const btn = document.querySelector('[onclick="submitQuote()"]');
+  const origHTML = btn.innerHTML;
 
-    const btn = qForm.querySelector('[type="submit"]');
-    const origHTML = btn.innerHTML;
+  // Collect values
+  const get = (name) => {
+    const el = document.querySelector(`[name="${name}"]`);
+    return el ? el.value.trim() : '';
+  };
 
-    // Basic validation
-    const nameVal  = qForm.querySelector('[name="name"]').value.trim();
-    const emailVal = qForm.querySelector('[name="email"]').value.trim();
-    if(!nameVal){alert('Please enter your name.');return;}
-    if(!emailVal||!emailVal.includes('@')){alert('Please enter a valid email.');return;}
+  const nameVal    = get('name');
+  const emailVal   = get('email');
+  const company    = get('company');
+  const service    = get('service');
+  const material   = get('material');
+  const tolerance  = get('tolerance');
+  const quantity   = get('quantity');
+  const application= get('application');
+  const notes      = get('notes');
 
-    // Loading
-    btn.innerHTML = '&#9654; SENDING...';
-    btn.disabled = true;
+  // Validation
+  if(!nameVal){ alert('Please enter your full name.'); return; }
+  if(!emailVal || !emailVal.includes('@')){ alert('Please enter a valid email.'); return; }
 
-    try {
-      const formData = new FormData(qForm);
-      const res = await fetch('https://api.web3forms.com/submit',{
-        method:'POST',
-        body: formData
-      });
-      const data = await res.json();
+  // Loading state
+  btn.innerHTML = '&#9654; SENDING...';
+  btn.disabled = true;
 
-      if(data.success){
-        qForm.style.display = 'none';
-        const suc = document.getElementById('formSuccess');
-        suc.style.display = 'block';
-        suc.scrollIntoView({behavior:'smooth',block:'center'});
-      } else {
-        throw new Error(data.message||'Submission failed');
-      }
-    } catch(err){
-      console.error('Form error:',err);
-      // WhatsApp fallback
-      const msg = encodeURIComponent(
-        '*Quote Request - Frank Jr Design*
+  // Build JSON payload for Web3Forms
+  const payload = {
+    access_key: 'c7d4b7d6-c4a7-4104-9e4a-9764c3be0050',
+    subject: 'New Quote Request - Frank Jr Design',
+    from_name: 'Frank Jr Design Website',
+    name: nameVal,
+    email: emailVal,
+    company: company,
+    service: service,
+    material: material,
+    tolerance: tolerance,
+    quantity: quantity,
+    application: application,
+    notes: notes,
+    botcheck: ''
+  };
 
-' +
-        'Name: ' + nameVal + '
-' +
-        'Email: ' + emailVal + '
-' +
-        'Service: ' + (qForm.querySelector('[name="service"]').value||'-') + '
-' +
-        'Material: ' + (qForm.querySelector('[name="material"]').value||'-') + '
-' +
-        'Tolerance: ' + (qForm.querySelector('[name="tolerance"]').value||'-') + '
-' +
-        'Quantity: ' + (qForm.querySelector('[name="quantity"]').value||'-')
-      );
-      window.open('https://wa.me/573012567767?text='+msg,'_blank');
-      alert('Form sent via WhatsApp. We will contact you shortly!');
-    } finally {
-      btn.innerHTML = origHTML;
-      btn.disabled = false;
+  try {
+    const res = await fetch('https://api.web3forms.com/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+
+    if(data.success){
+      // Hide form, show success
+      document.getElementById('quoteForm').style.display = 'none';
+      const suc = document.getElementById('formSuccess');
+      suc.style.display = 'block';
+      suc.scrollIntoView({ behavior:'smooth', block:'center' });
+    } else {
+      throw new Error(data.message || 'Unknown error');
     }
-  });
+  } catch(err){
+    console.error('Web3Forms error:', err);
+    // Fallback: open WhatsApp with message
+    const msg = encodeURIComponent(
+      '*New Quote - Frank Jr Design*
+
+' +
+      'Name: ' + nameVal + '
+' +
+      'Email: ' + emailVal + '
+' +
+      'Company: ' + (company||'-') + '
+' +
+      'Service: ' + (service||'-') + '
+' +
+      'Material: ' + (material||'-') + '
+' +
+      'Tolerance: ' + (tolerance||'-') + '
+' +
+      'Quantity: ' + (quantity||'-') + '
+' +
+      'Application: ' + (application||'-') + '
+' +
+      'Notes: ' + (notes||'-')
+    );
+    window.open('https://wa.me/573012567767?text=' + msg, '_blank');
+  } finally {
+    btn.innerHTML = origHTML;
+    btn.disabled = false;
+  }
 }
 
 </script>
@@ -1221,7 +1253,7 @@ if(qForm){
     <div class="sec-lbl" data-t="qlbl">Quote</div>
     <h2 class="sec-title rv" data-t="qtit">Request a Precision Quote</h2>
     <p class="sec-desc rv" data-t="qdsc">Upload your CAD files, drawings or specifications. Response with full technical and commercial proposal within 24-48 hours.</p>
-    <form id="quoteForm" onsubmit="return false;">
+    <div id="quoteForm">
       <!-- Web3Forms hidden config -->
       <input type="hidden" name="access_key" value="c7d4b7d6-c4a7-4104-9e4a-9764c3be0050">
       <input type="hidden" name="subject" value="New Quote Request - Frank Jr Design">
@@ -1277,10 +1309,10 @@ if(qForm){
           </div>
           <div class="img-preview-grid" id="img-preview"></div>
         </div>
-        <button type="submit" class="btn-a" style="width:100%;justify-content:center;margin-top:6px" data-t="fsub">&#9658; Send Quote Request</button>
+        <button type="button" onclick="submitQuote()" class="btn-a" style="width:100%;justify-content:center;margin-top:6px" data-t="fsub">&#9658; Send Quote Request</button>
         <p style="font-size:.7rem;color:var(--gray);margin-top:10px;letter-spacing:.5px" data-t="fnote">All files treated with strict confidentiality. Response within 24-48 hours.</p>
       </div>
-    </div></form>
+    </div></div>
     <!-- Success message -->
     <div id="formSuccess" style="display:none;margin-top:28px;padding:28px 32px;border:1px solid rgba(0,230,118,.3);background:rgba(0,230,118,.06);text-align:center">
       <p style="font-family:'Orbitron',monospace;font-size:1.1rem;font-weight:700;color:var(--green);margin-bottom:10px" data-t="suc_t">&#10003; Quote Request Sent Successfully</p>
