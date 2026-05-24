@@ -1239,7 +1239,7 @@ function showFormMsg(type, msgEn, msgEs){
     <div class="sec-lbl" data-t="qlbl">Quote</div>
     <h2 class="sec-title rv" data-t="qtit">Request a Precision Quote</h2>
     <p class="sec-desc rv" data-t="qdsc">Upload your CAD files, drawings or specifications. Response with full technical and commercial proposal within 24-48 hours.</p>
-    <form id="quoteForm" method="POST">
+    <form id="quoteForm" method="POST" action="https://api.web3forms.com/submit">
       <!-- Web3Forms hidden config -->
       <input type="hidden" name="access_key" value="c7d4b7d6-c4a7-4104-9e4a-9764c3be0050">
       <input type="hidden" name="subject" value="New Quote Request - Frank Jr Design">
@@ -1269,9 +1269,9 @@ function showFormMsg(type, msgEn, msgEs){
         <div class="f-grp">
           <label class="f-lbl" data-t="fl8">Urgency</label>
           <div class="upills">
-            <button class="upill on" onclick="surg(this)" data-t="pu1">Standard</button>
-            <button class="upill"    onclick="surg(this)" data-t="pu2">Priority</button>
-            <button class="upill"    onclick="surg(this)" data-t="pu3">Urgent</button>
+            <button type="button" class="upill on" onclick="surg(this)" data-t="pu1">Standard</button>
+            <button type="button" class="upill" onclick="surg(this)" data-t="pu2">Priority</button>
+            <button type="button" class="upill" onclick="surg(this)" data-t="pu3">Urgent</button>
           </div>
         </div>
       </div>
@@ -1295,7 +1295,7 @@ function showFormMsg(type, msgEn, msgEs){
           </div>
           <div class="img-preview-grid" id="img-preview"></div>
         </div>
-        <button class="btn-a" style="width:100%;justify-content:center;margin-top:6px" data-t="fsub">&#9658; Send Quote Request</button>
+        <button type="submit" class="btn-a" style="width:100%;justify-content:center;margin-top:6px" data-t="fsub">&#9658; Send Quote Request</button>
         <p style="font-size:.7rem;color:var(--gray);margin-top:10px;letter-spacing:.5px" data-t="fnote">All files treated with strict confidentiality. Response within 24-48 hours.</p>
       </div>
     </div></form>
@@ -1305,7 +1305,7 @@ function showFormMsg(type, msgEn, msgEs){
       <p style="font-size:.88rem;color:var(--gray2)" data-t="suc_p">We'll review your requirements and respond within 24-48 hours. Check your email for confirmation.</p>
       <div style="display:flex;gap:14px;justify-content:center;margin-top:20px;flex-wrap:wrap">
         <a href="https://wa.me/573012567767" target="_blank" class="btn-b" style="clip-path:none" data-t="suc_wa">&#128241; Chat on WhatsApp</a>
-        <button onclick="document.getElementById('formSuccess').style.display='none';document.getElementById('quoteForm').reset();document.getElementById('quoteForm').style.display='grid';" class="btn-c" data-t="suc_new">Send Another</button>
+        <button type="button" onclick="document.getElementById('formSuccess').style.display='none';document.getElementById('quoteForm').reset();document.getElementById('quoteForm').style.display='grid';" class="btn-c" data-t="suc_new">Send Another</button>
       </div>
     </div>
   </div>
