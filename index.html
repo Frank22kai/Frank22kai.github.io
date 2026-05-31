@@ -332,6 +332,32 @@ footer{position:relative;z-index:1;background:#f2f2f2;border-top:2px solid rgba(
   letter-spacing:1.5px;margin-top:6px;
 }
 
+
+/* ── FILE DELETE BUTTONS ── */
+.cad-file-item{position:relative}
+.fi-del{
+  width:22px;height:22px;border-radius:50%;
+  background:#cc0000;color:#fff;border:none;
+  font-size:.75rem;cursor:pointer;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .2s;line-height:1;
+}
+.fi-del:hover{background:#990000}
+.imgprev{position:relative}
+.img-wrap{position:relative;display:inline-block}
+.img-wrap img{display:block}
+.img-del{
+  position:absolute;top:-6px;right:-6px;
+  width:20px;height:20px;border-radius:50%;
+  background:#cc0000;color:#fff;border:none;
+  font-size:.7rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 6px rgba(0,0,0,.25);
+  transition:background .2s;line-height:1;
+  z-index:2;
+}
+.img-del:hover{background:#990000}
+
 </style>
 </head>
 <body>
@@ -1077,7 +1103,38 @@ document.addEventListener('keydown',e=>{const g=document.getElementById('glb');i
    QUOTE FORM
    ====================================================== */
 function surg(el){document.querySelectorAll('.upill').forEach(p=>p.classList.remove('on'));el.classList.add('on');}
-function prevImgs(input){const grid=document.getElementById('imgprev');if(!grid)return;Array.from(input.files).forEach(f=>{if(!f.type.startsWith('image/'))return;const r=new FileReader();r.onload=e=>{const img=document.createElement('img');img.src=e.target.result;img.title=f.name;grid.appendChild(img);};r.readAsDataURL(f);});}
+function prevImgs(input){
+  const grid=document.getElementById('imgprev');
+  if(!grid)return;
+  Array.from(input.files).forEach(function(file){
+    if(!file.type.startsWith('image/'))return;
+    const r=new FileReader();
+    r.onload=function(e){
+      const wrap=document.createElement('div');
+      wrap.className='img-wrap';
+      wrap.dataset.name=file.name;
+      const img=document.createElement('img');
+      img.src=e.target.result;
+      img.title=file.name;
+      img.style.cssText='width:76px;height:56px;object-fit:cover;border:1px solid rgba(204,0,0,.2);display:block';
+      const del=document.createElement('button');
+      del.type='button';
+      del.className='img-del';
+      del.innerHTML='✕';
+      del.title='Remove';
+      del.onclick=function(){
+        wrap.remove();
+        // Reset input so same file can be re-selected
+        const inp=document.getElementById('img-file-input');
+        if(inp) inp.value='';
+      };
+      wrap.appendChild(img);
+      wrap.appendChild(del);
+      grid.appendChild(wrap);
+    };
+    r.readAsDataURL(file);
+  });
+}
 
 async function submitQuote(){
   const btn=document.querySelector('[onclick="submitQuote()"]');
@@ -1103,8 +1160,12 @@ async function submitQuote(){
   const cadInput=document.querySelector('[name="cad_files"]');
   const imgInput=document.getElementById('img-file-input');
   const allFiles=[];
-  if(cadInput&&cadInput.files) Array.from(cadInput.files).forEach(f=>allFiles.push(f));
-  if(imgInput&&imgInput.files) Array.from(imgInput.files).forEach(f=>allFiles.push(f));
+  // Only include CAD files still shown in the preview (user may have removed some)
+  const cadNames=new Set(Array.from(document.querySelectorAll('.cad-file-item[data-name]')).map(el=>el.dataset.name));
+  if(cadInput&&cadInput.files) Array.from(cadInput.files).filter(f=>cadNames.has(f.name)).forEach(f=>allFiles.push(f));
+  // Images: read from the img-wrap elements in the preview grid (src is base64 already)
+  const imgWraps=document.querySelectorAll('#imgprev .img-wrap');
+  // We'll handle images separately below
 
   // Convert files to base64
   async function toB64(file){
@@ -1216,49 +1277,61 @@ document.querySelectorAll('.gc').forEach((c,i)=>{c.style.transitionDelay=(i%4)*.
 
 /* ── CAD FILE PREVIEW ── */
 function previewCad(input){
-  const grid = document.getElementById('cad-preview');
-  if(!grid) return;
-  grid.innerHTML = '';
-  const files = Array.from(input.files);
-  if(files.length === 0) return;
+  const grid=document.getElementById('cad-preview');
+  if(!grid)return;
+  // Keep existing items, just add new ones
+  const existing=Array.from(grid.querySelectorAll('.cad-file-item')).map(el=>el.dataset.name);
+  const MAX_MB=50;
+  let files=Array.from(input.files).filter(f=>!existing.includes(f.name));
 
-  const MAX_MB = 50;
-  let validCount = 0;
-
-  files.forEach(file => {
-    const item = document.createElement('div');
-    item.className = 'cad-file-item';
-
-    const sizeMB = (file.size / 1024 / 1024).toFixed(2);
-    const tooBig = file.size > MAX_MB * 1024 * 1024;
-    const ext = file.name.split('.').pop().toLowerCase();
-
-    // Icon by type
-    const icons = {
-      pdf:'📄', stl:'🔩', sldprt:'🟠', sldasm:'🟠', slddrw:'🟠',
-      ipt:'🔵', iam:'🔵', idw:'🔵', step:'⚙️', stp:'⚙️',
-      iges:'⚙️', igs:'⚙️', dwg:'📐', dxf:'📐',
-      catpart:'🟣', catproduct:'🟣', prt:'⚙️', asm:'⚙️'
-    };
-    const icon = icons[ext] || '📎';
-
-    item.innerHTML =
-      '<span class="fi-icon">' + icon + '</span>' +
-      '<span class="fi-name" title="' + file.name + '">' + file.name + '</span>' +
-      '<span class="fi-size">' + sizeMB + ' MB</span>' +
-      (tooBig
-        ? '<span class="fi-err">✗ TOO LARGE</span>'
-        : '<span class="fi-ok">✓ READY</span>');
-
+  files.forEach(function(file){
+    const sizeMB=(file.size/1024/1024).toFixed(2);
+    const tooBig=file.size>MAX_MB*1024*1024;
+    const ext=file.name.split('.').pop().toLowerCase();
+    const icons={pdf:'📄',stl:'🔩',sldprt:'🟠',sldasm:'🟠',slddrw:'🟠',ipt:'🔵',iam:'🔵',idw:'🔵',step:'⚙️',stp:'⚙️',iges:'⚙️',igs:'⚙️',dwg:'📐',dxf:'📐',catpart:'🟣',catproduct:'🟣',prt:'⚙️',asm:'⚙️'};
+    const icon=icons[ext]||'📎';
+    const item=document.createElement('div');
+    item.className='cad-file-item';
+    item.dataset.name=file.name;
+    item.dataset.file=JSON.stringify({name:file.name,size:file.size,type:file.type});
+    item.innerHTML=
+      '<span class="fi-icon">'+icon+'</span>'+
+      '<span class="fi-name" title="'+file.name+'">'+file.name+'</span>'+
+      '<span class="fi-size">'+sizeMB+' MB</span>'+
+      (tooBig?'<span class="fi-err">✗ TOO LARGE</span>':'<span class="fi-ok">✓ READY</span>')+
+      '<button type="button" class="fi-del" onclick="removeCadFile(this)" title="Remove">✕</button>';
     grid.appendChild(item);
-    if(!tooBig) validCount++;
   });
+  updateCadCount();
+}
 
-  // Summary line
-  const summary = document.createElement('p');
-  summary.className = 'cad-count';
-  summary.textContent = validCount + ' of ' + files.length + ' file' + (files.length > 1 ? 's' : '') + ' ready to send';
-  grid.appendChild(summary);
+function removeCadFile(btn){
+  const item=btn.closest('.cad-file-item');
+  if(!item)return;
+  item.remove();
+  updateCadCount();
+  // Reset the file input so the same file can be re-added
+  const input=document.querySelector('[name="cad_files"]');
+  if(input) input.value='';
+}
+
+function updateCadCount(){
+  const grid=document.getElementById('cad-preview');
+  if(!grid)return;
+  const summary=grid.querySelector('.cad-count');
+  if(summary)summary.remove();
+  const items=grid.querySelectorAll('.cad-file-item');
+  if(items.length===0)return;
+  const valid=Array.from(items).filter(el=>el.querySelector('.fi-ok')).length;
+  const p=document.createElement('p');
+  p.className='cad-count';
+  p.textContent=valid+' of '+items.length+' file'+(items.length>1?'s':'')+' ready to send';
+  grid.appendChild(p);
+}
+
+function getCadFilesForSubmit(){
+  // Return list of file names currently shown in the preview
+  return Array.from(document.querySelectorAll('.cad-file-item[data-name]')).map(el=>el.dataset.name);
 }
 
 </script>
