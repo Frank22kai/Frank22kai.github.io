@@ -1089,60 +1089,82 @@ async function submitQuote(){
   if(!emailVal||!emailVal.includes('@')){alert('Please enter a valid email address.');return;}
   btn.innerHTML='&#9654; SENDING...';btn.disabled=true;
 
-  // Send form text data via Web3Forms
-  const fd=new FormData();
-  fd.append('access_key','c7d4b7d6-c4a7-4104-9e4a-9764c3be0050');
-  fd.append('subject','Quote Request - Frank Jr Design');
-  fd.append('from_name',nameVal);
-  fd.append('name',nameVal);
-  fd.append('email',emailVal);
-  fd.append('company',get('company'));
-  fd.append('service',get('service'));
-  fd.append('material',get('material'));
-  fd.append('tolerance',get('tolerance'));
-  fd.append('quantity',get('quantity'));
-  fd.append('application',get('application'));
-  fd.append('notes',get('notes'));
+  // Collect form data
+  const formData={
+    name:nameVal, email:emailVal,
+    company:get('company'), service:get('service'),
+    material:get('material'), tolerance:get('tolerance'),
+    quantity:get('quantity'), urgency: (document.querySelector('.upill.on')||{}).textContent||'Standard',
+    application:get('application'), notes:get('notes'),
+    files:[]
+  };
 
-  // Check if client attached files
+  // Read files as base64
   const cadInput=document.querySelector('[name="cad_files"]');
   const imgInput=document.getElementById('img-file-input');
-  const hasCad=cadInput&&cadInput.files&&cadInput.files.length>0;
-  const hasImg=imgInput&&imgInput.files&&imgInput.files.length>0;
-  if(hasCad||hasImg){
-    const fileNames=[];
-    if(hasCad) Array.from(cadInput.files).forEach(f=>fileNames.push('CAD: '+f.name));
-    if(hasImg) Array.from(imgInput.files).forEach(f=>fileNames.push('IMG: '+f.name));
-    fd.append('attached_files',fileNames.join(' | '));
-    fd.append('notes',get('notes')+'\n\nFiles attached (sent via WhatsApp): '+fileNames.join(', '));
+  const allFiles=[];
+  if(cadInput&&cadInput.files) Array.from(cadInput.files).forEach(f=>allFiles.push(f));
+  if(imgInput&&imgInput.files) Array.from(imgInput.files).forEach(f=>allFiles.push(f));
+
+  // Convert files to base64
+  async function toB64(file){
+    return new Promise((res,rej)=>{
+      const r=new FileReader();
+      r.onload=e=>res({name:file.name,type:file.type,data:e.target.result.split(',')[1]});
+      r.onerror=rej;
+      r.readAsDataURL(file);
+    });
   }
 
-  let submitted=false;
   try{
-    const res=await fetch('https://api.web3forms.com/submit',{method:'POST',body:fd});
-    const data=await res.json();
-    if(data.success){
-      submitted=true;
-      document.getElementById('quoteForm').style.display='none';
-      const suc=document.getElementById('formSuccess');
-      suc.style.display='block';
-      suc.scrollIntoView({behavior:'smooth',block:'center'});
-    } else {
-      throw new Error(data.message||'Web3Forms error');
+    // Read all files
+    if(allFiles.length>0){
+      btn.innerHTML='&#9654; READING FILES...';
+      formData.files=await Promise.all(allFiles.map(toB64));
     }
-  } catch(err){
-    console.error('Submit error:',err);
-    submitted=false;
-  } finally {
-    btn.innerHTML=origHTML;btn.disabled=false;
-  }
 
-  // If files attached OR submission failed, open WhatsApp with full data
-  if(!submitted||(hasCad||hasImg)){
-    const fileList=[];
-    if(hasCad) Array.from(cadInput.files).forEach(f=>fileList.push(f.name));
-    if(hasImg) Array.from(imgInput.files).forEach(f=>fileList.push(f.name));
-    const msg=encodeURIComponent(
+    btn.innerHTML='&#9654; UPLOADING...';
+
+    // STEP 1: Send to Google Apps Script (files + data → Drive + email)
+    const SCRIPT_URL='https://script.google.com/macros/s/AKfycbzCIt0zfCOBH_-HSNrjhRt2Cod2hZvJ7ihII7VlPvuvBBZjMbaqPI2cwQeUSvGB65U/exec';
+    let driveOk=false;
+
+    if(SCRIPT_URL!=='https://script.google.com/macros/s/AKfycbzCIt0zfCOBH_-HSNrjhRt2Cod2hZvJ7ihII7VlPvuvBBZjMbaqPI2cwQeUSvGB65U/exec'){
+      try{
+        const driveRes=await fetch(SCRIPT_URL,{
+          method:'POST',
+          body:JSON.stringify(formData)
+        });
+        const driveData=await driveRes.json();
+        driveOk=driveData.success;
+      }catch(e){console.warn('Drive upload failed:',e);}
+    }
+
+    // STEP 2: Also send text summary to Web3Forms (email backup)
+    const fd=new FormData();
+    fd.append('access_key','c7d4b7d6-c4a7-4104-9e4a-9764c3be0050');
+    fd.append('subject','Quote Request - Frank Jr Design - '+nameVal);
+    fd.append('from_name',nameVal);
+    fd.append('name',nameVal);
+    fd.append('email',emailVal);
+    fd.append('company',get('company'));
+    fd.append('service',get('service'));
+    fd.append('material',get('material'));
+    fd.append('tolerance',get('tolerance'));
+    fd.append('quantity',get('quantity'));
+    fd.append('urgency',formData.urgency);
+    fd.append('application',get('application'));
+    fd.append('notes',get('notes')+(allFiles.length?'\n\nFiles: '+allFiles.map(f=>f.name).join(', '):''));
+
+    try{
+      const w3res=await fetch('https://api.web3forms.com/submit',{method:'POST',body:fd});
+      const w3data=await w3res.json();
+      if(!w3data.success) console.warn('Web3Forms:',w3data.message);
+    }catch(e){console.warn('Web3Forms failed:',e);}
+
+    // STEP 3: Build WhatsApp message with file list
+    const fileList=allFiles.map(f=>f.name);
+    const waMsg=encodeURIComponent(
       '*Quote Request - Frank Jr Design*\n\n'+
       'Name: '+nameVal+'\nEmail: '+emailVal+
       '\nCompany: '+(get('company')||'-')+
@@ -1150,19 +1172,29 @@ async function submitQuote(){
       '\nMaterial: '+(get('material')||'-')+
       '\nTolerance: '+(get('tolerance')||'-')+
       '\nQuantity: '+(get('quantity')||'-')+
+      '\nUrgency: '+formData.urgency+
       '\nApplication: '+(get('application')||'-')+
       '\nNotes: '+(get('notes')||'-')+
-      (fileList.length?'\n\nFiles to send:\n'+fileList.map(n=>'- '+n).join('\n'):'')+
-      (fileList.length?'\n\n(Por favor adjunte los archivos en este chat)':'')
+      (fileList.length?'\n\nFiles attached:\n'+fileList.map(n=>'• '+n).join('\n'):'')
     );
-    setTimeout(()=>window.open('https://wa.me/573012567767?text='+msg,'_blank'),submitted?800:0);
 
-    if(!submitted){
-      document.getElementById('quoteForm').style.display='none';
-      const suc=document.getElementById('formSuccess');
-      suc.style.display='block';
-      suc.scrollIntoView({behavior:'smooth',block:'center'});
-    }
+    // Show success
+    document.getElementById('quoteForm').style.display='none';
+    const suc=document.getElementById('formSuccess');
+    suc.style.display='block';
+    suc.scrollIntoView({behavior:'smooth',block:'center'});
+
+    // Open WhatsApp after short delay
+    setTimeout(()=>window.open('https://wa.me/573012567767?text='+waMsg,'_blank'),900);
+
+  }catch(err){
+    console.error('Submit error:',err);
+    // Emergency fallback — WhatsApp only
+    const msg=encodeURIComponent('*Quote Request*\nName: '+nameVal+'\nEmail: '+emailVal+'\nService: '+get('service'));
+    window.open('https://wa.me/573012567767?text='+msg,'_blank');
+    alert('Quote sent via WhatsApp. We will contact you shortly.');
+  }finally{
+    btn.innerHTML=origHTML;btn.disabled=false;
   }
 }
 
