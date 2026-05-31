@@ -311,6 +311,27 @@ footer{position:relative;z-index:1;background:#f2f2f2;border-top:2px solid rgba(
 @media(max-width:1100px){.svgg{grid-template-columns:1fr 1fr}.galg{grid-template-columns:repeat(3,1fr)}.tcapg{grid-template-columns:1fr 1fr}.indg{grid-template-columns:repeat(2,1fr)}.ftin{grid-template-columns:1fr 1fr;gap:28px}}
 @media(max-width:900px){nav{padding:0 18px}.nav-links{display:none}.ncta{display:none}#hero{flex-direction:column;padding:88px 20px 44px}.hr{display:none}.ag,.qgrid,.ctin{grid-template-columns:1fr;gap:38px}.sec{padding:64px 20px}.sbar{grid-template-columns:repeat(3,1fr)}.galg{grid-template-columns:repeat(2,1fr)}.blogg{grid-template-columns:1fr}.ftin{grid-template-columns:1fr;padding:32px 20px 16px}.fbot{padding:14px 20px;flex-direction:column;gap:8px}}
 @media(max-width:560px){.svgg{grid-template-columns:1fr}.galg{grid-template-columns:1fr}.indg{grid-template-columns:repeat(2,1fr)}.sbar{grid-template-columns:repeat(2,1fr)}.tcapg{grid-template-columns:1fr}.hmets{gap:12px}.hm{padding-right:14px;margin-right:14px}}
+
+/* ── CAD FILE PREVIEW LIST ── */
+#cad-preview{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+.cad-file-item{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 12px;
+  background:#ffffff;
+  border:1px solid rgba(204,0,0,.2);
+  border-left:3px solid #cc0000;
+  font-size:.78rem;
+}
+.cad-file-item .fi-icon{font-size:1rem;flex-shrink:0;color:#cc0000}
+.cad-file-item .fi-name{flex:1;color:#111111;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+.cad-file-item .fi-size{font-family:'Share Tech Mono',monospace;font-size:.65rem;color:#555566;flex-shrink:0}
+.cad-file-item .fi-ok{font-size:.75rem;color:#007a33;font-weight:700;flex-shrink:0}
+.cad-file-item .fi-err{font-size:.75rem;color:#cc0000;font-weight:700;flex-shrink:0}
+.cad-count{
+  font-family:'Share Tech Mono',monospace;font-size:.65rem;color:#cc0000;
+  letter-spacing:1.5px;margin-top:6px;
+}
+
 </style>
 </head>
 <body>
@@ -725,12 +746,13 @@ footer{position:relative;z-index:1;background:#f2f2f2;border-top:2px solid rgba(
       <div class="rvr">
         <label class="flbl" data-t="fl9">Upload CAD Files (STEP, IGES, DWG, SolidWorks, Inventor, CATIA...)</label>
         <div class="fdrop">
-          <input type="file" multiple accept=".step,.stp,.iges,.igs,.dwg,.dxf,.pdf,.stl,.3mf,.sldprt,.sldasm,.slddrw,.ipt,.iam,.idw,.ipn,.prt,.asm,.drw,.catpart,.catproduct,.sat,.x_t,.x_b,.3dm,.jt" name="cad_files">
+          <input type="file" multiple accept=".step,.stp,.iges,.igs,.dwg,.dxf,.pdf,.stl,.3mf,.sldprt,.sldasm,.slddrw,.ipt,.iam,.idw,.ipn,.prt,.asm,.drw,.catpart,.catproduct,.sat,.x_t,.x_b,.3dm,.jt" name="cad_files" onchange="previewCad(this)">
           <span class="fdrop-ic">&#8659;</span>
           <p data-t="fdp">Drag &amp; drop your CAD files here</p>
           <span data-t="fds">STEP &middot; IGES &middot; SLDPRT &middot; IPT &middot; CATIA &middot; DWG &middot; STL &middot; PDF &middot; Max 50MB</span>
         </div>
         <label class="flbl" style="color:var(--bl2)" data-t="fi1">Add Reference Images (JPG / PNG)</label>
+        <div id="cad-preview"></div>
         <div class="imgdrop">
           <input type="file" multiple accept="image/jpeg,image/png,image/webp" onchange="prevImgs(this)">
           <span class="imgdrop-ic">&#128247;</span>
@@ -1134,6 +1156,54 @@ document.querySelectorAll('.indc').forEach((c,i)=>{c.style.transitionDelay=i*.05
 document.querySelectorAll('.tcapc').forEach((c,i)=>{c.style.transitionDelay=i*.05+'s';});
 document.querySelectorAll('.bc').forEach((c,i)=>{c.style.transitionDelay=i*.06+'s';});
 document.querySelectorAll('.gc').forEach((c,i)=>{c.style.transitionDelay=(i%4)*.04+'s';});
+
+/* ── CAD FILE PREVIEW ── */
+function previewCad(input){
+  const grid = document.getElementById('cad-preview');
+  if(!grid) return;
+  grid.innerHTML = '';
+  const files = Array.from(input.files);
+  if(files.length === 0) return;
+
+  const MAX_MB = 50;
+  let validCount = 0;
+
+  files.forEach(file => {
+    const item = document.createElement('div');
+    item.className = 'cad-file-item';
+
+    const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+    const tooBig = file.size > MAX_MB * 1024 * 1024;
+    const ext = file.name.split('.').pop().toLowerCase();
+
+    // Icon by type
+    const icons = {
+      pdf:'📄', stl:'🔩', sldprt:'🟠', sldasm:'🟠', slddrw:'🟠',
+      ipt:'🔵', iam:'🔵', idw:'🔵', step:'⚙️', stp:'⚙️',
+      iges:'⚙️', igs:'⚙️', dwg:'📐', dxf:'📐',
+      catpart:'🟣', catproduct:'🟣', prt:'⚙️', asm:'⚙️'
+    };
+    const icon = icons[ext] || '📎';
+
+    item.innerHTML =
+      '<span class="fi-icon">' + icon + '</span>' +
+      '<span class="fi-name" title="' + file.name + '">' + file.name + '</span>' +
+      '<span class="fi-size">' + sizeMB + ' MB</span>' +
+      (tooBig
+        ? '<span class="fi-err">✗ TOO LARGE</span>'
+        : '<span class="fi-ok">✓ READY</span>');
+
+    grid.appendChild(item);
+    if(!tooBig) validCount++;
+  });
+
+  // Summary line
+  const summary = document.createElement('p');
+  summary.className = 'cad-count';
+  summary.textContent = validCount + ' of ' + files.length + ' file' + (files.length > 1 ? 's' : '') + ' ready to send';
+  grid.appendChild(summary);
+}
+
 </script>
 
 <!-- FLOATING WHATSAPP BUTTON -->
