@@ -754,7 +754,7 @@ footer{position:relative;z-index:1;background:#f2f2f2;border-top:2px solid rgba(
         <label class="flbl" style="color:var(--bl2)" data-t="fi1">Add Reference Images (JPG / PNG)</label>
         <div id="cad-preview"></div>
         <div class="imgdrop">
-          <input type="file" multiple accept="image/jpeg,image/png,image/webp" onchange="prevImgs(this)">
+          <input type="file" id="img-file-input" multiple accept="image/jpeg,image/png,image/webp" onchange="prevImgs(this)">
           <span class="imgdrop-ic">&#128247;</span>
           <p data-t="fi2">Upload photos of your part, drawing or reference</p>
           <span data-t="fi3">JPG &middot; PNG &middot; WEBP &middot; Max 10MB each</span>
@@ -1089,7 +1089,7 @@ async function submitQuote(){
   if(!emailVal||!emailVal.includes('@')){alert('Please enter a valid email address.');return;}
   btn.innerHTML='&#9654; SENDING...';btn.disabled=true;
 
-  // Use FormData so files (CAD + images) are included in the submission
+  // Send form text data via Web3Forms
   const fd=new FormData();
   fd.append('access_key','c7d4b7d6-c4a7-4104-9e4a-9764c3be0050');
   fd.append('subject','Quote Request - Frank Jr Design');
@@ -1103,29 +1103,45 @@ async function submitQuote(){
   fd.append('quantity',get('quantity'));
   fd.append('application',get('application'));
   fd.append('notes',get('notes'));
-  // Attach CAD files
+
+  // Check if client attached files
   const cadInput=document.querySelector('[name="cad_files"]');
-  if(cadInput&&cadInput.files.length>0){
-    Array.from(cadInput.files).forEach(f=>fd.append('cad_files',f,f.name));
-  }
-  // Attach reference images
   const imgInput=document.getElementById('img-file-input');
-  if(imgInput&&imgInput.files.length>0){
-    Array.from(imgInput.files).forEach(f=>fd.append('images',f,f.name));
+  const hasCad=cadInput&&cadInput.files&&cadInput.files.length>0;
+  const hasImg=imgInput&&imgInput.files&&imgInput.files.length>0;
+  if(hasCad||hasImg){
+    const fileNames=[];
+    if(hasCad) Array.from(cadInput.files).forEach(f=>fileNames.push('CAD: '+f.name));
+    if(hasImg) Array.from(imgInput.files).forEach(f=>fileNames.push('IMG: '+f.name));
+    fd.append('attached_files',fileNames.join(' | '));
+    fd.append('notes',get('notes')+'\n\nFiles attached (sent via WhatsApp): '+fileNames.join(', '));
   }
 
+  let submitted=false;
   try{
     const res=await fetch('https://api.web3forms.com/submit',{method:'POST',body:fd});
     const data=await res.json();
     if(data.success){
+      submitted=true;
       document.getElementById('quoteForm').style.display='none';
       const suc=document.getElementById('formSuccess');
       suc.style.display='block';
       suc.scrollIntoView({behavior:'smooth',block:'center'});
-    } else throw new Error(data.message||'Failed');
-  }catch(err){
-    console.error('Quote error:',err);
-    // WhatsApp fallback with text data (files can't go via WA link)
+    } else {
+      throw new Error(data.message||'Web3Forms error');
+    }
+  } catch(err){
+    console.error('Submit error:',err);
+    submitted=false;
+  } finally {
+    btn.innerHTML=origHTML;btn.disabled=false;
+  }
+
+  // If files attached OR submission failed, open WhatsApp with full data
+  if(!submitted||(hasCad||hasImg)){
+    const fileList=[];
+    if(hasCad) Array.from(cadInput.files).forEach(f=>fileList.push(f.name));
+    if(hasImg) Array.from(imgInput.files).forEach(f=>fileList.push(f.name));
     const msg=encodeURIComponent(
       '*Quote Request - Frank Jr Design*\n\n'+
       'Name: '+nameVal+'\nEmail: '+emailVal+
@@ -1135,10 +1151,19 @@ async function submitQuote(){
       '\nTolerance: '+(get('tolerance')||'-')+
       '\nQuantity: '+(get('quantity')||'-')+
       '\nApplication: '+(get('application')||'-')+
-      '\nNotes: '+(get('notes')||'-')
+      '\nNotes: '+(get('notes')||'-')+
+      (fileList.length?'\n\nFiles to send:\n'+fileList.map(n=>'- '+n).join('\n'):'')+
+      (fileList.length?'\n\n(Por favor adjunte los archivos en este chat)':'')
     );
-    window.open('https://wa.me/573012567767?text='+msg,'_blank');
-  }finally{btn.innerHTML=origHTML;btn.disabled=false;}
+    setTimeout(()=>window.open('https://wa.me/573012567767?text='+msg,'_blank'),submitted?800:0);
+
+    if(!submitted){
+      document.getElementById('quoteForm').style.display='none';
+      const suc=document.getElementById('formSuccess');
+      suc.style.display='block';
+      suc.scrollIntoView({behavior:'smooth',block:'center'});
+    }
+  }
 }
 
 /* ======================================================
