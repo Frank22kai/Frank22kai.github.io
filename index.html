@@ -1173,69 +1173,109 @@ function prevImgs(input){
 
 async function submitQuote(){
   const btn=document.querySelector('[onclick="submitQuote()"]');
-  if(!btn)return;
+  if(!btn) return;
   const origHTML=btn.innerHTML;
-  const get=(n)=>{const el=document.querySelector('[name="'+n+'"]');return el?el.value.trim():'';};
-  const nameVal=get('name'),emailVal=get('email');
-  if(!nameVal){alert('Please enter your full name.');return;}
-  if(!emailVal||!emailVal.includes('@')){alert('Please enter a valid email address.');return;}
-  btn.innerHTML='&#9654; SENDING...';btn.disabled=true;
 
-  // Collect form data
+  const get=(n)=>{
+    const el=document.querySelector('[name="'+n+'"]');
+    return el?el.value.trim():'';
+  };
+
+  const nameVal=get('name'), emailVal=get('email');
+  if(!nameVal){alert('Por favor ingresa tu nombre completo.');return;}
+  if(!emailVal||!emailVal.includes('@')){alert('Por favor ingresa un correo valido.');return;}
+
+  btn.innerHTML='&#9654; ENVIANDO...';
+  btn.disabled=true;
+
+  // Collect urgency
+  const urgBtn=document.querySelector('.upill.on');
+  const urgency=urgBtn?urgBtn.textContent:'Standard';
+
+  // Collect CAD file names from preview
+  const cadNames=Array.from(document.querySelectorAll('.cad-file-item[data-name]')).map(el=>el.dataset.name);
+
+  // Collect image previews (already base64 in src)
+  const imgWraps=Array.from(document.querySelectorAll('#imgprev .img-wrap img'));
+
+  // Build payload
   const formData={
     name:nameVal, email:emailVal,
     company:get('company'), service:get('service'),
     material:get('material'), tolerance:get('tolerance'),
-    quantity:get('quantity'), urgency: (document.querySelector('.upill.on')||{}).textContent||'Standard',
+    quantity:get('quantity'), urgency:urgency,
     application:get('application'), notes:get('notes'),
     files:[]
   };
 
-  // Read files as base64
-  const cadInput=document.querySelector('[name="cad_files"]');
-  const imgInput=document.getElementById('img-file-input');
-  const allFiles=[];
-  // Only include CAD files still shown in the preview (user may have removed some)
-  const cadNames=new Set(Array.from(document.querySelectorAll('.cad-file-item[data-name]')).map(el=>el.dataset.name));
-  if(cadInput&&cadInput.files) Array.from(cadInput.files).filter(f=>cadNames.has(f.name)).forEach(f=>allFiles.push(f));
-  // Images: read from the img-wrap elements in the preview grid (src is base64 already)
-  const imgWraps=document.querySelectorAll('#imgprev .img-wrap');
-  // We'll handle images separately below
-
-  // Convert files to base64
-  async function toB64(file){
-    return new Promise((res,rej)=>{
-      const r=new FileReader();
-      r.onload=e=>res({name:file.name,type:file.type,data:e.target.result.split(',')[1]});
-      r.onerror=rej;
-      r.readAsDataURL(file);
-    });
-  }
-
   try{
-    // Read all files
-    if(allFiles.length>0){
-      btn.innerHTML='&#9654; READING FILES...';
-      formData.files=await Promise.all(allFiles.map(toB64));
+    // Read CAD files as base64
+    const cadInput=document.querySelector('[name="cad_files"]');
+    if(cadInput&&cadInput.files&&cadInput.files.length>0){
+      btn.innerHTML='&#9654; LEYENDO ARCHIVOS...';
+      const validFiles=Array.from(cadInput.files).filter(f=>cadNames.includes(f.name));
+      for(const file of validFiles){
+        const b64=await new Promise((res,rej)=>{
+          const r=new FileReader();
+          r.onload=e=>res(e.target.result.split(',')[1]);
+          r.onerror=rej;
+          r.readAsDataURL(file);
+        });
+        formData.files.push({name:file.name,type:file.type||'application/octet-stream',data:b64});
+      }
     }
 
-    btn.innerHTML='&#9654; UPLOADING...';
+    // Read images from preview grid
+    for(const img of imgWraps){
+      const src=img.src;
+      if(src.startsWith('data:')){
+        const parts=src.split(',');
+        const mime=parts[0].split(':')[1].split(';')[0];
+        formData.files.push({name:img.title||'image.jpg',type:mime,data:parts[1]});
+      }
+    }
 
-    // STEP 1: Send to Google Apps Script (files + data → Drive + email)
+    btn.innerHTML='&#9654; SUBIENDO...';
+
+    // ── SEND TO GOOGLE APPS SCRIPT via hidden form (bypasses CORS 100%) ──
     const SCRIPT_URL='https://script.google.com/macros/s/AKfycbzCIt0zfCOBH_-HSNrjhRt2Cod2hZvJ7ihII7VlPvuvBBZjMbaqPI2cwQeUSvGB65U/exec';
-    let driveOk=false;
 
-    if(SCRIPT_URL!=='https://script.google.com/macros/s/AKfycbzCIt0zfCOBH_-HSNrjhRt2Cod2hZvJ7ihII7VlPvuvBBZjMbaqPI2cwQeUSvGB65U/exec'){
-      try{
-        await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(formData)});
-        driveOk=true;
-      }catch(e){console.warn('Drive upload failed:',e);}
-    }
+    await new Promise((resolve)=>{
+      // Create hidden iframe as target
+      const iframe=document.createElement('iframe');
+      iframe.name='gas_target';
+      iframe.style.display='none';
+      document.body.appendChild(iframe);
 
-    // STEP 2: Also send text summary to Web3Forms (email backup)
+      // Create hidden form
+      const form=document.createElement('form');
+      form.method='POST';
+      form.action=SCRIPT_URL;
+      form.target='gas_target';
+      form.style.display='none';
+
+      // Add JSON payload as hidden field
+      const input=document.createElement('input');
+      input.type='hidden';
+      input.name='payload';
+      input.value=JSON.stringify(formData);
+      form.appendChild(input);
+
+      document.body.appendChild(form);
+      form.submit();
+
+      // Give Apps Script time to process (5 seconds)
+      setTimeout(()=>{
+        document.body.removeChild(form);
+        document.body.removeChild(iframe);
+        resolve();
+      }, 5000);
+    });
+
+    // ── ALSO SEND TEXT SUMMARY to Web3Forms (email backup) ──
     const fd=new FormData();
     fd.append('access_key','c7d4b7d6-c4a7-4104-9e4a-9764c3be0050');
-    fd.append('subject','Quote Request - Frank Jr Design - '+nameVal);
+    fd.append('subject','Cotizacion - Frank Jr Design - '+nameVal);
     fd.append('from_name',nameVal);
     fd.append('name',nameVal);
     fd.append('email',emailVal);
@@ -1244,30 +1284,24 @@ async function submitQuote(){
     fd.append('material',get('material'));
     fd.append('tolerance',get('tolerance'));
     fd.append('quantity',get('quantity'));
-    fd.append('urgency',formData.urgency);
+    fd.append('urgency',urgency);
     fd.append('application',get('application'));
-    fd.append('notes',get('notes')+(allFiles.length?'\n\nFiles: '+allFiles.map(f=>f.name).join(', '):''));
+    fd.append('notes',get('notes')+(cadNames.length?'\n\nArchivos: '+cadNames.join(', '):''));
+    try{await fetch('https://api.web3forms.com/submit',{method:'POST',body:fd});}catch(e){}
 
-    try{
-      const w3res=await fetch('https://api.web3forms.com/submit',{method:'POST',body:fd});
-      const w3data=await w3res.json();
-      if(!w3data.success) console.warn('Web3Forms:',w3data.message);
-    }catch(e){console.warn('Web3Forms failed:',e);}
-
-    // STEP 3: Build WhatsApp message with file list
-    const fileList=allFiles.map(f=>f.name);
+    // ── OPEN WHATSAPP with summary ──
     const waMsg=encodeURIComponent(
-      '*Quote Request - Frank Jr Design*\n\n'+
-      'Name: '+nameVal+'\nEmail: '+emailVal+
-      '\nCompany: '+(get('company')||'-')+
-      '\nService: '+(get('service')||'-')+
+      '*Solicitud de Cotizacion - Frank Jr Design*\n\n'+
+      'Nombre: '+nameVal+'\nCorreo: '+emailVal+
+      '\nEmpresa: '+(get('company')||'-')+
+      '\nServicio: '+(get('service')||'-')+
       '\nMaterial: '+(get('material')||'-')+
-      '\nTolerance: '+(get('tolerance')||'-')+
-      '\nQuantity: '+(get('quantity')||'-')+
-      '\nUrgency: '+formData.urgency+
-      '\nApplication: '+(get('application')||'-')+
-      '\nNotes: '+(get('notes')||'-')+
-      (fileList.length?'\n\nFiles attached:\n'+fileList.map(n=>'• '+n).join('\n'):'')
+      '\nTolerancia: '+(get('tolerance')||'-')+
+      '\nCantidad: '+(get('quantity')||'-')+
+      '\nUrgencia: '+urgency+
+      '\nAplicacion: '+(get('application')||'-')+
+      '\nNotas: '+(get('notes')||'-')+
+      (cadNames.length?'\n\nArchivos adjuntos:\n'+cadNames.map(n=>'• '+n).join('\n'):'')
     );
 
     // Show success
@@ -1277,16 +1311,16 @@ async function submitQuote(){
     suc.scrollIntoView({behavior:'smooth',block:'center'});
 
     // Open WhatsApp after short delay
-    setTimeout(()=>window.open('https://wa.me/573012567767?text='+waMsg,'_blank'),900);
+    setTimeout(()=>window.open('https://wa.me/573012567767?text='+waMsg,'_blank'),1000);
 
   }catch(err){
-    console.error('Submit error:',err);
-    // Emergency fallback — WhatsApp only
-    const msg=encodeURIComponent('*Quote Request*\nName: '+nameVal+'\nEmail: '+emailVal+'\nService: '+get('service'));
+    console.error('Error:', err);
+    alert('Hubo un problema. Abre WhatsApp para enviar la solicitud.');
+    const msg=encodeURIComponent('*Cotizacion* - '+nameVal+' - '+emailVal);
     window.open('https://wa.me/573012567767?text='+msg,'_blank');
-    alert('Quote sent via WhatsApp. We will contact you shortly.');
   }finally{
-    btn.innerHTML=origHTML;btn.disabled=false;
+    btn.innerHTML=origHTML;
+    btn.disabled=false;
   }
 }
 
