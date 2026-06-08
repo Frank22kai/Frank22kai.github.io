@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -382,8 +382,8 @@ footer{position:relative;z-index:1;background:#f2f2f2;border-top:2px solid rgba(
       <li><a href="#contact"   data-t="nct">Contact</a></li>
     </ul>
     <div class="lsw">
-      <button class="lo on" onclick="setLang('en')">EN</button>
-      <button class="lo"    onclick="setLang('es')">ES</button>
+      <button class="lo"    onclick="setLang('en')">EN</button>
+      <button class="lo on" onclick="setLang('es')">ES</button>
     </div>
     <a href="#quote" class="ncta" data-t="nca">Get Quote</a>
   </div>
@@ -922,8 +922,8 @@ footer{position:relative;z-index:1;background:#f2f2f2;border-top:2px solid rgba(
   <div class="fbot">
     <span class="fc">&copy; 2025 <span>FRANK JR DESIGN</span> &mdash; Frank Jr. Palacio Pajaro &mdash; Mechanical Engineer &mdash; Colombia</span>
     <div class="flangs">
-      <button class="on" onclick="setLang('en')">EN</button>
-      <button onclick="setLang('es')">ES</button>
+      <button onclick="setLang('en')">EN</button>
+      <button class="on" onclick="setLang('es')">ES</button>
     </div>
   </div>
 </footer>
@@ -1227,12 +1227,8 @@ async function submitQuote(){
 
     if(SCRIPT_URL!=='https://script.google.com/macros/s/AKfycbzCIt0zfCOBH_-HSNrjhRt2Cod2hZvJ7ihII7VlPvuvBBZjMbaqPI2cwQeUSvGB65U/exec'){
       try{
-        const driveRes=await fetch(SCRIPT_URL,{
-          method:'POST',
-          body:JSON.stringify(formData)
-        });
-        const driveData=await driveRes.json();
-        driveOk=driveData.success;
+        await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(formData)});
+        driveOk=true;
       }catch(e){console.warn('Drive upload failed:',e);}
     }
 
@@ -1309,6 +1305,9 @@ document.querySelectorAll('.indc').forEach((c,i)=>{c.style.transitionDelay=i*.05
 document.querySelectorAll('.tcapc').forEach((c,i)=>{c.style.transitionDelay=i*.05+'s';});
 document.querySelectorAll('.bc').forEach((c,i)=>{c.style.transitionDelay=i*.06+'s';});
 document.querySelectorAll('.gc').forEach((c,i)=>{c.style.transitionDelay=(i%4)*.04+'s';});
+
+// Default language: Spanish
+setLang('es');
 
 /* ── CAD FILE PREVIEW ── */
 function previewCad(input){
