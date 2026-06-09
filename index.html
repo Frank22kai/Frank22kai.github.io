@@ -3,6 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://frankjrdesign.com">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://frankjrdesign.com">
+<meta property="og:title" content="Frank Jr Design | CAD/CAM Design & Precision Manufacturing">
+<meta property="og:description" content="Especialista CAD/CAM/CAE, manufactura CNC de precision y simulacion FEM. Bogota, Colombia.">
+<meta property="og:site_name" content="Frank Jr Design">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:url" content="https://frankjrdesign.com">
+<meta name="twitter:title" content="Frank Jr Design | CAD/CAM & Precision Manufacturing">
+<meta name="twitter:description" content="Especialista CAD/CAM/CAE, CNC, FEM. Bogota Colombia.">
 <meta name="description" content="Frank Jr Design - CAD/CAM Mechanical Design & Precision CNC Manufacturing. FEM Simulation, GD&T, Product Development. Bogota Colombia.">
 <meta name="keywords" content="diseno mecanico bogota,fabricacion CNC colombia,programacion CAM,simulacion FEM,mecanizado precision,GDT,diseno industrial">
 <title>Frank Jr Design | CAD/CAM Design & Precision Manufacturing</title>
@@ -359,6 +369,22 @@ footer{position:relative;z-index:1;background:#f2f2f2;border-top:2px solid rgba(
 .img-del:hover{background:#990000}
 
 </style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ProfessionalService",
+  "name": "Frank Jr Design",
+  "url": "https://frankjrdesign.com",
+  "description": "Especialista en CAD/CAM/CAE, manufactura CNC de precision, simulacion FEM, GD&T y diseno mecanico industrial. Bogota, Colombia.",
+  "email": "frankpalacio14@gmail.com",
+  "telephone": "+573012567767",
+  "address": {"@type": "PostalAddress","addressLocality": "Bogota","addressCountry": "CO"},
+  "founder": {"@type": "Person","name": "Frank Jr. Palacio Pajaro","jobTitle": "Mechanical Engineer"},
+  "serviceType": ["CAD Design","CAM Programming","CNC Machining","FEM Simulation","Oil & Gas Engineering","Steel Cost Engineering","Dimensional Survey"],
+  "areaServed": "Worldwide",
+  "priceRange": "$$"
+}
+</script>
 </head>
 <body>
 <canvas id="cvs"></canvas>
@@ -1275,8 +1301,10 @@ async function submitQuote(){
     // ── ALSO SEND TEXT SUMMARY to Web3Forms (email backup) ──
     const fd=new FormData();
     fd.append('access_key','c7d4b7d6-c4a7-4104-9e4a-9764c3be0050');
+    fd.append('website','https://frankjrdesign.com');
     fd.append('subject','Cotizacion - Frank Jr Design - '+nameVal);
     fd.append('from_name',nameVal);
+    fd.append('website','https://frankjrdesign.com');
     fd.append('name',nameVal);
     fd.append('email',emailVal);
     fd.append('company',get('company'));
